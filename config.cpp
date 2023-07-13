@@ -2,6 +2,8 @@
 #include "logger.h"
 
 #include <iostream>
+#include <sstream>
+
 
 //  负责解析加载配置文件
 void Config::LoadConfigFile(const char *config_file)
@@ -41,28 +43,85 @@ void Config::LoadConfigFile(const char *config_file)
             continue;
         }
 
-        //  实例：/home/zixuanhuang=1,2,3,4,5,6,7\n
+        /*
+        
+        //  实例：/home/zixuanhuang/hooktest/test.txt=/home/zixuanhuang/hooktest/main
         std::string key;
         std::vector<std::string> value;
         std::string course_id;
         key = read_buf.substr(0, idx);
         Trim(key);
         
-        int endidx = read_buf.find('\n', idx);
+        int endidx = read_buf.find('\n');
         int startidx = idx + 1;
         ++idx;
         while (startidx != endidx)
         {
+            ++startidx;
+            //  实例：/home/zixuanhuang=1,2,3,4,5,6,7\n -> 30
+            //  = -> 17   1 -> 18 , -> 19 
             if (read_buf[idx] == ',' || startidx == endidx)
             {
-                course_id = read_buf.substr(idx, endidx - startidx - 1);
+                course_id = read_buf.substr(idx, startidx);
                 Trim(course_id);
-                idx = startidx;
                 value.push_back(course_id);
                 course_id.clear();
+                if (startidx == endidx)
+                {
+                    break;
+                }
+                idx = ++startidx;
             }
-            ++startidx;
+            
         }
+        std::cout << "配置文件加载：" << key << std::endl;
+        for (auto &str : value)
+        {
+            std::cout << "白名单：" << str << std::endl;
+        }
+        std::cout << value.size() << std::endl;
+
+        */
+
+
+        std::string key;
+        key = read_buf.substr(0, idx);
+        Trim(key);
+        ++idx;
+
+        int end = read_buf.find('\n');
+        int start_idx = idx;
+        std::vector<std::string> value;
+
+        while (start_idx != end)
+        {
+            ++start_idx;
+            if (read_buf[start_idx] == ',')
+            {
+                std::string course_id = read_buf.substr(idx, start_idx - idx);
+                ++start_idx;
+                idx = start_idx;
+                value.push_back(course_id);
+            }
+            else if (read_buf[start_idx] == '\n')
+            {
+                std::string course_id = read_buf.substr(idx, start_idx - idx);
+                value.push_back(course_id);
+                break;
+            }
+        }
+
+
+        /*----------------------测试代码------------------*/
+        /*
+            std::cout << "配置文件加载：" << key << std::endl;
+            for (const auto& str : value)
+            {
+                std::cout << "白名单：" << str << std::endl;
+            }
+        */
+        
+
         m_configMap.insert({key, value});
     }
 }
