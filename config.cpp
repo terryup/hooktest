@@ -17,6 +17,8 @@ void Config::LoadConfigFile(const char *config_file)
         exit(EXIT_FAILURE);
     }
 
+    char ip_name[3] = "ip";
+
     //  如火没读完就进入循环
     while (!feof(pf))
     {
@@ -88,8 +90,22 @@ void Config::LoadConfigFile(const char *config_file)
         key = read_buf.substr(0, idx);
         Trim(key);
         ++idx;
+        if (key.compare(ip_name) == 0)
+        {
+            //  这个判断出来这后面是IP行
+            int end = read_buf.find('\n');
+            std::string ip_port = read_buf.substr(idx, end - idx);
+            Trim(ip_port);
+            int ip_index = ip_port.find(':');
+            std::string ip = ip_port.substr(0, ip_index);
+            std::string port_str = ip_port.substr(ip_index + 1, end - ip_index + 1);
+            int port = std::stoi(port_str);
 
-        int end = read_buf.find('\n');
+            m_configMap_ip_port.insert({ip, port});
+        }
+        else
+        {
+            int end = read_buf.find('\n');
         int start_idx = idx;
         std::vector<std::string> value;
 
@@ -123,6 +139,7 @@ void Config::LoadConfigFile(const char *config_file)
         
 
         m_configMap.insert({key, value});
+        } 
     }
 }
 
@@ -150,4 +167,16 @@ void Config::Trim (std::string& src_buf)
     {
         src_buf = src_buf.substr(0, idx + 1);
     }
+}
+
+
+//  查询IP:PORT是否在文件中
+int Config::Load_ip_port (const std::string&ip)
+{
+    auto it = m_configMap_ip_port.find(ip);
+    if (it == m_configMap_ip_port.end())
+    {
+        return -1;
+    }
+    return it->second;
 }

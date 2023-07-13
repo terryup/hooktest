@@ -14,6 +14,9 @@
 #include <sys/types.h>  //  stat
 #include <dlfcn.h>  //  dlopen()
 
+#include <sys/socket.h>
+#include <arpa/inet.h>  //  connect
+
 #define STRMAXLEN 301
 
 //  配置文件的加载路径
@@ -184,7 +187,7 @@ int open(const char *pathname, int flags)
 }
 */
 
-typedef int (*new_read)(int __fd, void *__buf, size_t __nbytes);
+typedef int (*new_read)(int, void *, size_t);
 
 void get_file_path(int fd, char *file_path, size_t size)
 {
@@ -268,3 +271,94 @@ ssize_t read(int __fd, void *__buf, size_t __nbytes)
     //  std::cout << "进程" << getpid() << "正在打开"  << file_path << ",已放行" << std::endl;
     return old_read(__fd, __buf, __nbytes);
 }
+
+
+typedef int (*new_socket)(int, const struct sockaddr *, socklen_t);
+
+//  是否存在于拦截名单--》不存在返回false ---》 存在返回true
+bool is_protect_ip(char *__ip, int port)
+{
+    m_config.LoadConfigFile(config);
+    int ret_port = m_config.Load_ip_port(__ip);
+    std::cout << "ret_port: " << ret_port << std::endl;
+    if ((ret_port > 0 && port != ret_port) || ret_port == -1)
+    {
+        return false;
+    }
+    return true;
+}
+
+
+int connect (int __fd, const struct sockaddr *__addr, socklen_t __len)
+{
+    std::cout << "成功拦截" << std::endl;
+
+    void *handle = nullptr;
+    new_socket old_connect = nullptr;
+
+    //  获得libc.so的句柄
+    handle = dlopen("libc.so.6", RTLD_LAZY);
+
+    //  找到read函数的加载地址
+    old_connect = (new_socket)dlsym(handle, "connect");
+
+    char ip[1024] = {0};
+    int port = -1;
+
+    //  ipv4的各式
+    if (AF_INET == __addr->sa_family)
+    {
+        struct sockaddr_in *sa4 = (struct sockaddr_in *)__addr;
+        inet_ntop(AF_INET, (void *)(struct sockaddr *)&sa4->sin_addr, ip, sizeof(ip));
+        port = ntohs(sa4->sin_port);
+        std::cout << "AF_INET ip : port = " << ip << ":" << port << std::endl;
+    }
+
+
+    bool protect_ip = is_protect_ip(ip, port);
+    if (protect_ip == true)
+    {
+        LOG_ERROR("进程:%d正在连接ip:%s, port:%d,已被拦截!", getpid(), ip, port);
+        return -1;
+    }
+    
+    return old_connect(__fd, __addr, __len);
+
+}
+
+typedef int (*new_accept)(int, struct sockaddr *, socklen_t *);
+
+int accept (int __fd, struct sockaddr * __addr, socklen_t * __addr_len)
+{
+    std::cout << "成功拦截" << std::endl;
+
+    void *handle = nullptr;
+    new_accept old_accept = nullptr;
+
+    // 获得libc.so.6的句柄
+    handle = dlopen("libc.so.6", RTLD_LAZY);
+
+    // 返回open函数在libc.so.6中的加载时的地址
+    old_accept = (new_accept)dlsym(handle, "accept");
+
+    char ip[1024] = {0};
+    int port = -1;
+    if (AF_INET == __addr->sa_family)
+    {
+        struct sockaddr_in *sa4 = (struct sockaddr_in *)__addr;
+        inet_ntop(AF_INET, (void *)(struct sockaddr *)&sa4->sin_addr, ip, sizeof(ip));
+        port = ntohs(sa4->sin_port);
+        std::cout << "AF_INET ip : port = " << ip << ":" << port << std::endl;
+    }
+
+    bool protect_ip = is_protect_ip(ip, port);
+    if (protect_ip == true)
+    {
+        LOG_ERROR("进程:%d正在连接ip:%s, port:%d,已被拦截!", getpid(), ip, port);
+        return -1;
+    }
+
+    return old_accept(__fd, __addr, __addr_len);
+}
+
+

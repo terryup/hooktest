@@ -1,11 +1,13 @@
-  #include <sys/types.h>
-       #include <sys/stat.h>
-       #include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include <iostream>
 
 #include <unistd.h>
 #include <string.h>
+
+#include <sys/socket.h>
 
 int main ()
 {
@@ -27,5 +29,8 @@ int main ()
     {
       std::cout << "read失败!!" << std::endl;
     }
+    
+    
+
     return 0;
 }
